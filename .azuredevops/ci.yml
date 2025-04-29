@@ -1,0 +1,121 @@
+# .azuredevops/ci.yml ── Praetor mono-repo
+trigger:
+  branches:
+    include: [ main, feature/*, bugfix/* ]
+
+variables:
+  vmImage: 'ubuntu-latest'
+  dotnetVersion: '8.0.x'
+  # ----- Azure resources -----
+  azureSubscription: 'Praetor-Dev-SPN'      # service connection name
+  acrName: 'praetoracr'
+  acaEnv: 'praetor-env'
+  # image tags
+  imageRepository: 'praetor-api'
+  imageTag: '$(Build.SourceVersionShort)'
+  # ----- Paths -----
+  sln: 'Praetor.sln'
+
+stages:
+
+# ───────────────────────────────────────────────
+- stage: Build_Test
+  displayName: Build & unit-test
+  jobs:
+  - job: build
+    pool: { vmImage: $(vmImage) }
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        version: $(dotnetVersion)
+
+    - task: Cache@2
+      inputs:
+        key: 'nuget | "$(Agent.OS)" | **/packages.lock.json'
+        restoreKeys: |
+          nuget | "$(Agent.OS)"
+        path: ~/.nuget/packages
+
+    - script: dotnet restore $(sln)
+      displayName: Restore
+
+    - script: dotnet build $(sln) --configuration Release --no-restore
+      displayName: Build
+
+    - script: dotnet test tests/Praetor.UnitTests --configuration Release --no-build --logger trx
+      displayName: Unit Tests
+
+    - task: PublishTestResults@2
+      inputs:
+        testRunner: VSTest
+        testResultsFiles: '**/*.trx'
+        failTaskOnFailedTests: true
+
+# ───────────────────────────────────────────────
+- stage: UI_Tests
+  displayName: Playwright UI smoke
+  dependsOn: Build_Test
+  jobs:
+  - job: e2e
+    condition: succeeds()
+    pool: { vmImage: $(vmImage) }
+    steps:
+    - task: UseDotNet@2
+      inputs: { version: $(dotnetVersion) }
+
+    - script: >
+        dotnet test tests/Praetor.PlaywrightTests
+        --configuration Release
+        --logger trx
+      displayName: Playwright
+      continueOnError: true          # don’t fail the whole pipe early
+
+    - task: PublishTestResults@2
+      inputs:
+        testRunner: VSTest
+        testResultsFiles: '**/*.trx'
+
+# ───────────────────────────────────────────────
+- stage: Containerize
+  displayName: Docker build & push
+  dependsOn: Build_Test
+  jobs:
+  - job: docker
+    pool: { vmImage: $(vmImage) }
+    steps:
+    - task: Docker@2
+      displayName: Build & push image
+      inputs:
+        repository: $(imageRepository)
+        command: buildAndPush
+        Dockerfile: src/Praetor.AppHost/Dockerfile
+        containerRegistry: $(acrName)
+        tags: |
+          $(imageTag)
+          latest
+
+# ───────────────────────────────────────────────
+- stage: Deploy_Dev
+  displayName: azd deploy → dev
+  dependsOn: Containerize
+  environment: dev
+  jobs:
+  - deployment: deploy
+    pool: { vmImage: $(vmImage) }
+    strategy: runOnce
+    steps:
+    - checkout: self
+    - task: UseDotNet@2
+      inputs: { version: $(dotnetVersion) }
+
+    - task: AzureCLI@2
+      displayName: "azd deploy"
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          # inject image tag for this run
+          azd env set CONTAINER_TAG $(imageTag)
+          azd deploy --no-prompt --output none
+

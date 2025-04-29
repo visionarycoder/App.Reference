@@ -1,0 +1,5 @@
+name: prod
+location: westus2
+parameters:
+  prfx: praetor
+  containerTag: prod

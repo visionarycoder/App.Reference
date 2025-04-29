@@ -1,0 +1,5 @@
+name: staging
+location: westus2
+parameters:
+  prfx: praetor
+  containerTag: staging

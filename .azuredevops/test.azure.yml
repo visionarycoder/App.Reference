@@ -1,0 +1,5 @@
+name: test
+location: westus2
+parameters:
+  prfx: praetor
+  containerTag: test

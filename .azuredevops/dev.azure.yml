@@ -1,0 +1,5 @@
+name: dev
+location: westus2
+parameters:
+  prfx: praetor
+  containerTag: dev
