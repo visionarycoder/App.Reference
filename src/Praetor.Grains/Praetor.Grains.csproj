@@ -4,12 +4,19 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>Praetor.Grains</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" Version="9.1.2" />
     <PackageReference Include="Microsoft.Orleans.Server" Version="9.1.2" />
     <PackageReference Include="Microsoft.Orleans.Streaming.AzureStorage" Version="9.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Praetor.Contracts\Praetor.Contracts.csproj" />
+    <ProjectReference Include="..\Praetor.Core\Praetor.Core.csproj" />
+    <ProjectReference Include="..\Praetor.Notifications\Praetor.Notifications.csproj" />
   </ItemGroup>
 
 </Project>

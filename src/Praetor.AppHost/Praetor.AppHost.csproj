@@ -17,4 +17,8 @@
     <PackageReference Include="Microsoft.Orleans.Server" Version="9.1.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Praetor.Rules\Praetor.Rules.csproj" />
+  </ItemGroup>
+
 </Project>
